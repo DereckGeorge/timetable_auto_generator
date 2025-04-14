@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'Coict Timetable Generator App',
+  description: 'Created with react js, next js',
+  generator: 'react',
 }
 
 export default function RootLayout({

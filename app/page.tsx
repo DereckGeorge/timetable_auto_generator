@@ -10,8 +10,8 @@ export default function Home() {
               <UniversityCrest />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-serif font-bold">ExamScheduler Pro</h1>
-              <p className="text-xs md:text-sm text-slate-300">University Examination Management System</p>
+              <h1 className="text-2xl md:text-3xl font-serif font-bold">Timetable Generator</h1>
+              <p className="text-xs md:text-sm text-slate-300">Coict Timetable Generator System</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4 text-sm">
@@ -39,7 +39,7 @@ export default function Home() {
       <footer className="bg-[#0c2340] text-white py-6 mt-16">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-slate-300">
-            © {new Date().getFullYear()} ExamScheduler Pro | University Examination Management System
+            © {new Date().getFullYear()} Timetable Generator | Coict Timetable Generator System
           </p>
         </div>
       </footer>
