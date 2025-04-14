@@ -9,12 +9,6 @@ Built with **Next.js 13+**, **React**, **TypeScript**, **Tailwind CSS**, and pow
 
 ---
 
-## 🖼️ Project Preview
-
-> Coming soon — add screenshots or a link to a live demo!
-
----
-
 ## ✨ Features
 
 - 🗂 Upload `.docx` files with exam details
@@ -133,7 +127,3 @@ This project is licensed under the MIT License.
 **Dereck Tano**
 
 ---
-
-## 💬 Support or Questions?
-
-Feel free to open an issue or contact us at [support@ocean.co.tz](mailto:support@ocean.co.tz)
