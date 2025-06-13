@@ -1,12 +1,10 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { FileUpload } from "@/components/file-upload"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -22,15 +20,63 @@ import {
   ArrowRight,
 } from "lucide-react"
 import { motion } from "framer-motion"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+interface Invigilator {
+  id: number
+  name: string
+}
+
+interface Venue {
+  id: number
+  name: string
+}
 
 export default function TimetableGenerator() {
   const [file, setFile] = useState<File | null>(null)
-  const [invigilators, setInvigilators] = useState("")
-  const [venues, setVenues] = useState("")
+  const [invigilators, setInvigilators] = useState<Invigilator[]>([])
+  const [venues, setVenues] = useState<Venue[]>([])
+  const [selectedInvigilators, setSelectedInvigilators] = useState<number[]>([])
+  const [selectedVenues, setSelectedVenues] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [activeStep, setActiveStep] = useState("upload")
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch invigilators
+        const invigilatorsResponse = await fetch("http://0.0.0.0:8000/api/invigilators/", {
+          headers: {
+            'Accept': 'application/json',
+          },
+        })
+        if (!invigilatorsResponse.ok) {
+          throw new Error(`Failed to fetch invigilators: ${invigilatorsResponse.statusText}`)
+        }
+        const invigilatorsData = await invigilatorsResponse.json()
+        setInvigilators(invigilatorsData)
+
+        // Fetch venues
+        const venuesResponse = await fetch("http://0.0.0.0:8000/api/venues/", {
+          headers: {
+            'Accept': 'application/json',
+          },
+        })
+        if (!venuesResponse.ok) {
+          throw new Error(`Failed to fetch venues: ${venuesResponse.statusText}`)
+        }
+        const venuesData = await venuesResponse.json()
+        setVenues(venuesData)
+      } catch (err) {
+        console.error('Error fetching data:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch data')
+      }
+    }
+
+    fetchData()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,13 +86,13 @@ export default function TimetableGenerator() {
       return
     }
 
-    if (!invigilators.trim()) {
-      setError("Please enter at least two invigilators")
+    if (selectedInvigilators.length < 2) {
+      setError("Please select at least two invigilators")
       return
     }
 
-    if (!venues.trim()) {
-      setError("Please enter at least one venue")
+    if (selectedVenues.length < 1) {
+      setError("Please select at least one venue")
       return
     }
 
@@ -56,8 +102,18 @@ export default function TimetableGenerator() {
     try {
       const formData = new FormData()
       formData.append("docx_file", file)
-      formData.append("invigilators", invigilators)
-      formData.append("venues", venues)
+      
+      // Get the names of selected invigilators and venues
+      const selectedInvigilatorNames = selectedInvigilators
+        .map(id => invigilators.find(i => i.id === id)?.name)
+        .filter((name): name is string => name !== undefined)
+      
+      const selectedVenueNames = selectedVenues
+        .map(id => venues.find(v => v.id === id)?.name)
+        .filter((name): name is string => name !== undefined)
+
+      formData.append("invigilators", selectedInvigilatorNames.join(", "))
+      formData.append("venues", selectedVenueNames.join(", "))
 
       const response = await fetch("/api/generate-timetable", {
         method: "POST",
@@ -83,7 +139,7 @@ export default function TimetableGenerator() {
   const nextStep = () => {
     if (activeStep === "upload" && file) {
       setActiveStep("invigilators")
-    } else if (activeStep === "invigilators" && invigilators.trim()) {
+    } else if (activeStep === "invigilators" && selectedInvigilators.length >= 2) {
       setActiveStep("venues")
     }
   }
@@ -93,9 +149,9 @@ export default function TimetableGenerator() {
       case "upload":
         return !!file
       case "invigilators":
-        return !!invigilators.trim()
+        return selectedInvigilators.length >= 2
       case "venues":
-        return !!venues.trim()
+        return selectedVenues.length >= 1
       default:
         return false
     }
@@ -144,7 +200,7 @@ export default function TimetableGenerator() {
                 value="venues"
                 onClick={() => setActiveStep("venues")}
                 className="data-[state=active]:bg-white data-[state=active]:text-[#0c2340] data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-[#c99700] rounded-none"
-                disabled={!file || !invigilators.trim()}
+                disabled={!file || selectedInvigilators.length < 2}
               >
                 <MapPin className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Exam Venues</span>
@@ -188,24 +244,54 @@ export default function TimetableGenerator() {
                       <span className="font-bold">2</span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium">Add Invigilators</h3>
-                      <p className="text-sm text-slate-500">Enter the names of available invigilators</p>
+                      <h3 className="text-lg font-medium">Select Invigilators</h3>
+                      <p className="text-sm text-slate-500">Choose the invigilators for the exams</p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="invigilators" className="text-[#0c2340] font-medium">
-                      Invigilators (comma-separated)
+                      Invigilators
                     </Label>
-                    <Textarea
-                      id="invigilators"
-                      placeholder="Dr. John Doe, Dr. Jane Smith, Prof. Alan Johnson, Dr. Emily Wilson"
-                      value={invigilators}
-                      onChange={(e) => setInvigilators(e.target.value)}
-                      className="min-h-[150px] border-slate-300 focus:border-[#0c2340] focus:ring-[#0c2340]"
-                    />
+                    <Select
+                      onValueChange={(value) => {
+                        const id = parseInt(value)
+                        if (!selectedInvigilators.includes(id)) {
+                          setSelectedInvigilators([...selectedInvigilators, id])
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select invigilators" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {invigilators.map((invigilator) => (
+                          <SelectItem key={invigilator.id} value={invigilator.id.toString()}>
+                            {invigilator.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-2 space-y-2">
+                      {selectedInvigilators.map((id) => {
+                        const invigilator = invigilators.find((i) => i.id === id)
+                        return (
+                          <div key={id} className="flex items-center justify-between bg-slate-50 p-2 rounded">
+                            <span>{invigilator?.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedInvigilators(selectedInvigilators.filter((i) => i !== id))}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
                     <p className="text-xs text-slate-500">
-                      Enter names separated by commas. At least two invigilators are required per exam.
+                      Select at least two invigilators. You can remove selected invigilators by clicking the Remove button.
                     </p>
                   </div>
 
@@ -213,7 +299,7 @@ export default function TimetableGenerator() {
                     <Button
                       type="button"
                       onClick={nextStep}
-                      disabled={!invigilators.trim()}
+                      disabled={selectedInvigilators.length < 2}
                       className="bg-[#0c2340] hover:bg-[#1a3a5f]"
                     >
                       Next Step <ArrowRight className="ml-2 h-4 w-4" />
@@ -229,40 +315,72 @@ export default function TimetableGenerator() {
                       <span className="font-bold">3</span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-medium">Add Exam Venues</h3>
-                      <p className="text-sm text-slate-500">Enter the available venues for exams</p>
+                      <h3 className="text-lg font-medium">Select Exam Venues</h3>
+                      <p className="text-sm text-slate-500">Choose the venues for the exams</p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="venues" className="text-[#0c2340] font-medium">
-                      Venues (comma-separated)
+                      Venues
                     </Label>
-                    <Textarea
-                      id="venues"
-                      placeholder="D01, B310, B305, A201, Main Hall, Science Theater"
-                      value={venues}
-                      onChange={(e) => setVenues(e.target.value)}
-                      className="min-h-[150px] border-slate-300 focus:border-[#0c2340] focus:ring-[#0c2340]"
-                    />
+                    <Select
+                      onValueChange={(value) => {
+                        const id = parseInt(value)
+                        if (!selectedVenues.includes(id)) {
+                          setSelectedVenues([...selectedVenues, id])
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select venues" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {venues.map((venue) => (
+                          <SelectItem key={venue.id} value={venue.id.toString()}>
+                            {venue.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-2 space-y-2">
+                      {selectedVenues.map((id) => {
+                        const venue = venues.find((v) => v.id === id)
+                        return (
+                          <div key={id} className="flex items-center justify-between bg-slate-50 p-2 rounded">
+                            <span>{venue?.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedVenues(selectedVenues.filter((v) => v !== id))}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
                     <p className="text-xs text-slate-500">
-                      Enter venue codes or names separated by commas. Each exam requires one venue.
+                      Select at least one venue. You can remove selected venues by clicking the Remove button.
                     </p>
                   </div>
 
                   <div className="flex justify-end mt-6">
                     <Button
                       type="submit"
-                      disabled={isLoading || !venues.trim()}
-                      className="bg-[#c99700] hover:bg-[#b38600] text-white"
+                      disabled={isLoading || selectedVenues.length < 1}
+                      className="bg-[#0c2340] hover:bg-[#1a3a5f]"
                     >
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating Timetable...
+                          Generating...
                         </>
                       ) : (
-                        "Generate Timetable"
+                        <>
+                          Generate Timetable <Download className="ml-2 h-4 w-4" />
+                        </>
                       )}
                     </Button>
                   </div>
@@ -272,85 +390,44 @@ export default function TimetableGenerator() {
           </Tabs>
         </Card>
       ) : (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Card className="border-2 border-green-100 shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white">
-              <div className="flex flex-col md:flex-row items-center justify-between">
-                <div className="flex items-center gap-4 mb-4 md:mb-0">
-                  <div className="bg-white/10 p-3 rounded-full">
-                    <CheckCircle className="h-8 w-8" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-serif font-bold">Timetable Generated Successfully!</h3>
-                    <p className="text-green-100">Your exam timetable is ready to download and use</p>
-                  </div>
-                </div>
-                <Button asChild className="bg-white text-green-700 hover:bg-green-50">
-                  <a href={pdfUrl} download="exam-timetable.pdf">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download PDF
-                  </a>
+        <Card className="border-2 border-slate-200 shadow-lg overflow-hidden">
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+              <h3 className="text-xl font-medium">Timetable Generated Successfully!</h3>
+              <p className="text-slate-600">Your exam timetable has been generated and is ready to download.</p>
+              <div className="flex justify-center gap-4">
+                <Button
+                  onClick={() => window.open(pdfUrl, "_blank")}
+                  className="bg-[#0c2340] hover:bg-[#1a3a5f]"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF
                 </Button>
-              </div>
-            </div>
-            <CardContent className="p-6">
-              <div className="w-full mt-4 border-2 border-slate-200 rounded-lg overflow-hidden">
-                <iframe src={pdfUrl} className="w-full h-[600px]" title="Generated Timetable PDF" />
-              </div>
-              <div className="mt-6 text-center">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setPdfUrl(null)
+                    setFile(null)
+                    setSelectedInvigilators([])
+                    setSelectedVenues([])
                     setActiveStep("upload")
                   }}
-                  className="border-[#0c2340] text-[#0c2340] hover:bg-[#0c2340] hover:text-white"
                 >
-                  Create Another Timetable
+                  Generate Another
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {error && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <Alert variant="destructive" className="border-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="font-medium">{error}</AlertDescription>
-          </Alert>
-        </motion.div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
-
-      <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-md">
-        <h3 className="text-xl font-serif font-bold text-[#0c2340] mb-4">How It Works</h3>
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-50 border border-slate-100">
-            <div className="w-12 h-12 bg-[#0c2340] text-white rounded-full flex items-center justify-center mb-3">
-              <FileText className="h-6 w-6" />
-            </div>
-            <h4 className="font-medium mb-2">Upload Schedule</h4>
-            <p className="text-sm text-slate-600">Upload your DOCX file containing the exam schedule details</p>
-          </div>
-          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-50 border border-slate-100">
-            <div className="w-12 h-12 bg-[#0c2340] text-white rounded-full flex items-center justify-center mb-3">
-              <Users className="h-6 w-6" />
-            </div>
-            <h4 className="font-medium mb-2">Add Resources</h4>
-            <p className="text-sm text-slate-600">Enter available invigilators and venues for your exams</p>
-          </div>
-          <div className="flex flex-col items-center text-center p-4 rounded-lg bg-slate-50 border border-slate-100">
-            <div className="w-12 h-12 bg-[#c99700] text-white rounded-full flex items-center justify-center mb-3">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <h4 className="font-medium mb-2">Get Timetable</h4>
-            <p className="text-sm text-slate-600">
-              Receive a perfectly balanced timetable with fair workload distribution
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

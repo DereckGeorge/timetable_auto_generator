@@ -22,6 +22,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ detail: [{ msg: "Venues list is required" }] }, { status: 422 })
     }
 
+    // Validate that we have enough invigilators and venues
+    const invigilatorList = invigilators.split(",").map(name => name.trim())
+    const venueList = venues.split(",").map(name => name.trim())
+
+    if (invigilatorList.length < 2) {
+      return NextResponse.json({ detail: [{ msg: "At least two invigilators are required" }] }, { status: 422 })
+    }
+
+    if (venueList.length < 1) {
+      return NextResponse.json({ detail: [{ msg: "At least one venue is required" }] }, { status: 422 })
+    }
+
     // Create a new FormData object to send to your backend API
     const apiFormData = new FormData()
     apiFormData.append("docx_file", file)
