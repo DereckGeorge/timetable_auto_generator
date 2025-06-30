@@ -1,4 +1,7 @@
 import TimetableGenerator from "@/components/timetable-generator"
+import { Button } from "@/components/ui/button"
+import { Settings } from "lucide-react"
+import Link from "next/link"
 
 export default function Home() {
   return (
@@ -18,6 +21,12 @@ export default function Home() {
             <span className="hover:text-[#c99700] cursor-pointer transition-colors">Dashboard</span>
             <span className="hover:text-[#c99700] cursor-pointer transition-colors">Resources</span>
             <span className="hover:text-[#c99700] cursor-pointer transition-colors">Help</span>
+            <Link href="/admin">
+              <Button variant="outline" size="sm" className="border-white text-white hover:bg-white hover:text-[#0c2340]">
+                <Settings className="mr-2 h-4 w-4" />
+                Admin
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
